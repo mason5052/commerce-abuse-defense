@@ -21,9 +21,9 @@ spec:
               command: ["/bin/sh", "-c"]
               args:
                 - |
-                  cad report \
-                    --source shopify,cloudflare \
-                    --config /config/cad-production.yaml \
+                  cad --config /config/cad-production.yaml \
+                    report \
+                    --source shopify \
                     --period 7d \
                     --format markdown \
                     --output /reports/cad-weekly-$(date +%Y%m%d).md \
