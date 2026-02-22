@@ -85,6 +85,7 @@ commerce-abuse-defense/
 |   |-- guardrails/
 |   |   |-- base.py               # Abstract guardrail interface
 |   |   |-- cloudflare.py         # Cloudflare WAF rule generator
+|   |   |-- aws_waf.py            # AWS WAF v2 rule generator
 |   |-- playbooks/                # Response playbooks
 |-- tests/                        # Unit tests + fixtures
 |-- docs/                         # Setup guides + threat model + blog
@@ -120,9 +121,12 @@ cad report --source sample --format markdown --output report.md
 # Quick score check
 cad score --source sample --period 1h
 
-# Generate Cloudflare WAF rules from abuse analysis
-cad guardrail --source sample --format json --output rules.json
-cad guardrail --source sample --format commands --zone-id YOUR_ZONE_ID
+# Generate WAF rules from abuse analysis
+cad guardrail --source sample --platform cloudflare --format json
+cad guardrail --source sample --platform aws_waf --format commands --web-acl-name MyACL
+
+# Continuous monitoring (checks every 30 minutes, alerts above score 25)
+cad watch --source shopify --period 1h --interval 30m --threshold 25
 
 # With real Shopify + Cloudflare data
 export CAD_SHOPIFY_SHOP="your-store"
@@ -148,23 +152,54 @@ All configuration can also be set via YAML file (`--config cad.yml`).
 
 ## Guardrail Generator (Phase 2)
 
-CAD can automatically generate deployable WAF rules from abuse analysis:
+CAD auto-generates deployable WAF rules for **Cloudflare** and **AWS WAF v2**:
 
-| Threat Severity | Cloudflare Action |
-|----------------|-------------------|
+```bash
+# Cloudflare: JSON payload or curl commands
+cad guardrail --source shopify --platform cloudflare --format json
+cad guardrail --source shopify --platform cloudflare --format commands --zone-id Z123
+
+# AWS WAF v2: JSON payload or aws-cli commands
+cad guardrail --source shopify --platform aws_waf --format json
+cad guardrail --source shopify --platform aws_waf --format commands --web-acl-name MyACL
+```
+
+| Threat Severity | Action |
+|----------------|--------|
 | CRITICAL (confirmed attacker IPs) | Block |
-| HIGH (bot user-agents) | Managed Challenge (CAPTCHA) |
-| MEDIUM (datacenter ASN + checkout) | JS Challenge |
+| HIGH (bot user-agents) | Managed Challenge / CAPTCHA |
+| MEDIUM (datacenter ASN + checkout) | JS Challenge / Count |
 | LOW | Log only |
 
 Generated rules include IP blocklists, bot UA challenges, datacenter ASN
 filtering, checkout rate limiting, hidden product referrer validation,
-and session flood JS challenges.
+and session flood defense.
+
+## Continuous Monitoring
+
+```bash
+# Watch mode: poll every 30 minutes, alert when score > 25
+cad watch --source shopify --period 1h --interval 30m --threshold 25
+
+# Log scores to CSV for trend analysis
+cad watch --source shopify --interval 1h --log scores.csv
+```
+
+Output:
+```
+CAD Watch | source=shopify period=1h interval=30m threshold=25.0
+------------------------------------------------------------
+[2026-02-22 03:00:00 UTC] Score: 11.2/100 (NORMAL) | Events: 96 Detections: 1
+[2026-02-22 03:30:00 UTC] Score: 12.5/100 (NORMAL) (+1.3) | Events: 102 Detections: 1
+[2026-02-22 04:00:00 UTC] ALERT Score: 38.7/100 (ELEVATED) (+26.2) | Events: 245 Detections: 4
+[2026-02-22 04:30:00 UTC] SPIKE Score: 72.1/100 (HIGH) (+33.4) | Events: 891 Detections: 8
+```
 
 ## Roadmap
 
 - **Phase 1** (complete): Abuse Score Reporter -- batch analysis, rule-based detection, CLI output
-- **Phase 2** (complete): Guardrail Generator -- Cloudflare WAF rule generation from abuse analysis
+- **Phase 2** (complete): Guardrail Generator -- Cloudflare + AWS WAF rule generation from abuse analysis
+- **Phase 2.1** (complete): Watch Mode -- continuous monitoring with threshold alerts and CSV logging
 - **Phase 3**: Attack Chain Documentation -- published attack pattern research, adversarial eCommerce security guides
 
 ## Author

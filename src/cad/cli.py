@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import argparse
+import signal
 import sys
+import time
 from datetime import datetime, timedelta, timezone
 
 from cad import __version__
@@ -96,6 +98,31 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     guard_parser.add_argument(
         "--period", type=str, default="24h",
         help="Analysis period (e.g., 1h, 24h, 7d). Default: 24h",
+    )
+
+    # -- watch command --
+    watch_parser = subparsers.add_parser(
+        "watch", help="Continuously monitor abuse score at intervals",
+    )
+    watch_parser.add_argument(
+        "--source", type=str, default="sample",
+        help="Data sources (comma-separated: sample, shopify, cloudflare)",
+    )
+    watch_parser.add_argument(
+        "--period", type=str, default="1h",
+        help="Analysis window per check (e.g., 1h, 24h). Default: 1h",
+    )
+    watch_parser.add_argument(
+        "--interval", type=str, default="30m",
+        help="Time between checks (e.g., 5m, 30m, 1h). Default: 30m",
+    )
+    watch_parser.add_argument(
+        "--threshold", type=float, default=25.0,
+        help="Alert when score exceeds this value (default: 25)",
+    )
+    watch_parser.add_argument(
+        "--log", type=str, default=None,
+        help="Append score history to this file (CSV format)",
     )
 
     return parser.parse_args(argv)
@@ -359,6 +386,141 @@ def run_guardrail(args: argparse.Namespace, config: dict) -> int:
     return 0
 
 
+def _collect_and_score(source_str, config, period):
+    """Collect events, run detectors, return (score, events, detections)."""
+    end_time = datetime.now(timezone.utc)
+    start_time = end_time - period
+
+    collectors = get_collectors(source_str, config)
+    if not collectors:
+        return None, 0, 0
+
+    all_events = []
+    for collector in collectors:
+        events = collector.collect(start_time, end_time)
+        all_events.extend(events)
+
+    if not all_events:
+        return None, 0, 0
+
+    detector_config = config.get("detectors", {})
+    all_detections = []
+    for detector_cls in ALL_DETECTORS:
+        category = detector_cls.__name__.replace("Detector", "").lower()
+        config_key_map = {
+            "highfrequency": "high_frequency",
+            "hiddenproduct": "hidden_product",
+            "paymentfailure": "payment_failure",
+            "sessionexplosion": "session_explosion",
+            "anomalousagent": "anomalous_agent",
+            "geoconcentration": "geo_concentration",
+        }
+        det_config = detector_config.get(
+            config_key_map.get(category, category), {},
+        )
+        detector = detector_cls(det_config)
+        all_detections.extend(detector.detect(all_events))
+
+    engine = ScoringEngine(config)
+    score = engine.score(all_detections, len(all_events), start_time, end_time)
+    return score, len(all_events), len(all_detections)
+
+
+def run_watch(args: argparse.Namespace, config: dict) -> int:
+    """Execute the watch command -- continuous monitoring loop."""
+    period = parse_period(args.period)
+    interval = parse_period(args.interval)
+    interval_secs = int(interval.total_seconds())
+    threshold = args.threshold
+    log_path = args.log
+
+    # Graceful shutdown on Ctrl+C
+    stop = False
+
+    def _handle_signal(sig, frame):
+        nonlocal stop
+        stop = True
+        print("\nStopping watch...")
+
+    signal.signal(signal.SIGINT, _handle_signal)
+
+    print(
+        f"CAD Watch | source={args.source} period={args.period} "
+        f"interval={args.interval} threshold={threshold}"
+    )
+    print("-" * 60)
+
+    # Write CSV header
+    if log_path:
+        with open(log_path, "a") as f:
+            f.write("timestamp,score,threat_level,events,detections\n")
+
+    prev_score = None
+    check_num = 0
+
+    while not stop:
+        check_num += 1
+        now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+
+        try:
+            score, events_count, det_count = _collect_and_score(
+                args.source, config, period,
+            )
+        except Exception as e:
+            print(f"[{now_str}] ERROR: {e}")
+            time.sleep(interval_secs)
+            continue
+
+        if score is None:
+            print(f"[{now_str}] No events found")
+            time.sleep(interval_secs)
+            continue
+
+        current = score.total_score
+        level = score.threat_level.value.upper()
+
+        # Delta from previous check
+        delta_str = ""
+        if prev_score is not None:
+            delta = current - prev_score
+            if delta > 0:
+                delta_str = f" (+{delta:.1f})"
+            elif delta < 0:
+                delta_str = f" ({delta:.1f})"
+
+        # Alert prefix
+        alert = ""
+        if current >= threshold:
+            alert = "ALERT "
+        if prev_score is not None and (current - prev_score) >= 15:
+            alert = "SPIKE "
+
+        print(
+            f"[{now_str}] {alert}Score: {current:.1f}/100 "
+            f"({level}){delta_str} | "
+            f"Events: {events_count} Detections: {det_count}"
+        )
+
+        # Append to log
+        if log_path:
+            with open(log_path, "a") as f:
+                f.write(
+                    f"{now_str},{current:.1f},{level},"
+                    f"{events_count},{det_count}\n"
+                )
+
+        prev_score = current
+
+        # Wait for next interval (check stop flag every second)
+        for _ in range(interval_secs):
+            if stop:
+                break
+            time.sleep(1)
+
+    print(f"Watch stopped after {check_num} checks.")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     """Main entry point."""
     args = parse_args(argv)
@@ -375,6 +537,8 @@ def main(argv: list[str] | None = None) -> int:
         return run_score(args, config)
     elif args.command == "guardrail":
         return run_guardrail(args, config)
+    elif args.command == "watch":
+        return run_watch(args, config)
 
     return 0
 
