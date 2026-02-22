@@ -1,8 +1,6 @@
 """Unit tests for the scoring engine."""
 
-from datetime import datetime, timezone
 
-import pytest
 
 from cad.scoring.engine import ScoringEngine
 from cad.scoring.models import (

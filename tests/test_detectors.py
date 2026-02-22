@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-
-import pytest
+from datetime import datetime
 
 from cad.detectors.anomalous_agent import AnomalousAgentDetector
 from cad.detectors.geo_concentration import GeoConcentrationDetector

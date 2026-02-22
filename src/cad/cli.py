@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import sys
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 
 from cad import __version__
 from cad.collectors.sample import SampleCollector
@@ -62,6 +61,37 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     score_parser.add_argument(
         "--period", type=str, default="1h",
         help="Analysis period (e.g., 1h, 24h, 7d). Default: 1h",
+    )
+
+    # -- guardrail command --
+    guard_parser = subparsers.add_parser(
+        "guardrail", help="Generate defense rules from abuse analysis",
+    )
+    guard_parser.add_argument(
+        "--source", type=str, default="sample",
+        help="Data sources (comma-separated: sample, shopify, cloudflare)",
+    )
+    guard_parser.add_argument(
+        "--platform", type=str, default="cloudflare",
+        choices=["cloudflare"],
+        help="Target WAF platform (default: cloudflare)",
+    )
+    guard_parser.add_argument(
+        "--format", type=str, default="json",
+        choices=["json", "commands"],
+        help="Output format: json (API payload) or commands (curl)",
+    )
+    guard_parser.add_argument(
+        "--zone-id", type=str, default="<ZONE_ID>",
+        help="Cloudflare Zone ID (for commands format)",
+    )
+    guard_parser.add_argument(
+        "--output", type=str, default=None,
+        help="Output file path (default: stdout)",
+    )
+    guard_parser.add_argument(
+        "--period", type=str, default="24h",
+        help="Analysis period (e.g., 1h, 24h, 7d). Default: 24h",
     )
 
     return parser.parse_args(argv)
@@ -228,6 +258,92 @@ def run_score(args: argparse.Namespace, config: dict) -> int:
     return 0
 
 
+def run_guardrail(args: argparse.Namespace, config: dict) -> int:
+    """Execute the guardrail command."""
+    period = parse_period(args.period)
+    end_time = datetime.now(timezone.utc)
+    start_time = end_time - period
+
+    # Collect and analyze (same pipeline as report)
+    collectors = get_collectors(args.source, config)
+    if not collectors:
+        print("Error: No valid data sources specified")
+        return 1
+
+    all_events = []
+    source_names = []
+    for collector in collectors:
+        errors = collector.validate_config()
+        if errors:
+            print(
+                f"Config errors for {collector.source_name}: "
+                f"{', '.join(errors)}"
+            )
+            return 1
+        events = collector.collect(start_time, end_time)
+        all_events.extend(events)
+        source_names.append(collector.source_name)
+
+    if not all_events:
+        print("No events found in the specified period")
+        return 0
+
+    # Run detectors
+    detector_config = config.get("detectors", {})
+    all_detections = []
+    for detector_cls in ALL_DETECTORS:
+        category = detector_cls.__name__.replace("Detector", "").lower()
+        config_key_map = {
+            "highfrequency": "high_frequency",
+            "hiddenproduct": "hidden_product",
+            "paymentfailure": "payment_failure",
+            "sessionexplosion": "session_explosion",
+            "anomalousagent": "anomalous_agent",
+            "geoconcentration": "geo_concentration",
+        }
+        det_config = detector_config.get(
+            config_key_map.get(category, category), {},
+        )
+        detector = detector_cls(det_config)
+        all_detections.extend(detector.detect(all_events))
+
+    # Generate report (needed as input to guardrail generator)
+    engine = ScoringEngine(config)
+    report = engine.generate_report(
+        detections=all_detections,
+        total_events=len(all_events),
+        sources=source_names,
+        period_start=start_time,
+        period_end=end_time,
+    )
+
+    # Generate guardrail rules
+    from cad.guardrails.cloudflare import CloudflareGuardrail
+
+    guardrail = CloudflareGuardrail()
+    rules = guardrail.generate(report)
+
+    if not rules:
+        print("No guardrail rules generated (no actionable threats)")
+        return 0
+
+    # Export in requested format
+    if args.format == "commands":
+        output = guardrail.export_as_commands(rules, zone_id=args.zone_id)
+    else:
+        output = guardrail.export(rules)
+
+    if args.output:
+        with open(args.output, "w") as f:
+            f.write(output)
+        print(f"Guardrail rules written to {args.output}")
+        print(f"Generated {len(rules)} rules for {guardrail.platform}")
+    else:
+        print(output)
+
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     """Main entry point."""
     args = parse_args(argv)
@@ -242,6 +358,8 @@ def main(argv: list[str] | None = None) -> int:
         return run_report(args, config)
     elif args.command == "score":
         return run_score(args, config)
+    elif args.command == "guardrail":
+        return run_guardrail(args, config)
 
     return 0
 

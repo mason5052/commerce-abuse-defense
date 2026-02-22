@@ -1,9 +1,6 @@
 """Unit tests for report generators."""
 
 import json
-from datetime import datetime, timezone
-
-import pytest
 
 from cad.reporters.json_reporter import JsonReporter
 from cad.reporters.markdown_reporter import MarkdownReporter

@@ -14,7 +14,6 @@ from cad.scoring.models import (
     ThreatLevel,
 )
 
-
 # Default scoring weights per detection category
 DEFAULT_WEIGHTS: dict[str, float] = {
     "high_frequency": 0.20,

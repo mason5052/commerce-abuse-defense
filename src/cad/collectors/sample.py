@@ -10,7 +10,6 @@ from typing import Any
 from cad.collectors.base import BaseCollector
 from cad.scoring.models import CommerceEvent, EventType
 
-
 # Default fixture directory relative to package root
 _FIXTURES_DIR = Path(__file__).parent.parent.parent.parent / "tests" / "fixtures"
 

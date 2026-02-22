@@ -8,7 +8,6 @@ from rich.table import Table
 
 from cad.scoring.models import AbuseReport, Severity, ThreatLevel
 
-
 THREAT_COLORS: dict[ThreatLevel, str] = {
     ThreatLevel.NORMAL: "green",
     ThreatLevel.ELEVATED: "yellow",

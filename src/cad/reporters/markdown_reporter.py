@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from cad.scoring.models import AbuseReport, Severity, ThreatLevel
+from cad.scoring.models import AbuseReport, Severity
 
 
 class MarkdownReporter:
@@ -39,8 +39,8 @@ class MarkdownReporter:
         lines.append("## Executive Summary")
         lines.append("")
         threat_label = report.score.threat_level.value.upper()
-        lines.append(f"| Metric | Value |")
-        lines.append(f"|--------|-------|")
+        lines.append("| Metric | Value |")
+        lines.append("|--------|-------|")
         lines.append(f"| **Abuse Score** | **{report.score.total_score}/100** |")
         lines.append(f"| **Threat Level** | **{threat_label}** |")
         lines.append(f"| **Events Analyzed** | {report.score.total_events_analyzed} |")
