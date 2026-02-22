@@ -147,14 +147,18 @@ from Amazon AWS in Romania is under attack.
 Knowing your abuse score is step one. Step two is automated response.
 
 CAD includes a guardrail generator that converts abuse analysis into deployable
-Cloudflare WAF rules:
+WAF rules for both Cloudflare and AWS WAF:
 
 ```bash
-# Analyze sample data and generate Cloudflare WAF rules
-cad guardrail --source sample --format json --output rules.json
+# Generate Cloudflare WAF rules
+cad guardrail --source sample --platform cloudflare --format json
 
-# Generate as curl commands for manual deployment
-cad guardrail --source sample --format commands --zone-id YOUR_ZONE_ID
+# Generate AWS WAF v2 rules
+cad guardrail --source sample --platform aws_waf --format json
+
+# Generate as CLI commands for manual deployment
+cad guardrail --source sample --platform cloudflare --format commands --zone-id YOUR_ZONE_ID
+cad guardrail --source sample --platform aws_waf --format commands --web-acl-name MyWebACL
 ```
 
 The generator maps threat severity to defense strategy:
@@ -226,11 +230,10 @@ and
 
 ## What's Next
 
-Phase 1 (current): Detection and scoring with manual report generation.
+Phase 1 (complete): Detection and scoring with multi-format report generation.
 
-Phase 2 (in progress): Automatic guardrail generation -- Cloudflare WAF rules
-produced directly from abuse analysis. Already functional for Cloudflare; AWS
-WAF and Shopify Flow support coming next.
+Phase 2 (complete): Automatic guardrail generation for Cloudflare WAF and AWS
+WAF v2. Generates platform-native rules directly from abuse analysis.
 
 Phase 3 (planned): Attack chain documentation -- detailed writeups of real
 attack patterns observed in production, with detection signatures and defense
