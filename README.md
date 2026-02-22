@@ -200,14 +200,14 @@ CAD Watch | source=shopify period=1h interval=30m threshold=25.0
 - **Phase 1** (complete): Abuse Score Reporter -- batch analysis, rule-based detection, CLI output
 - **Phase 2** (complete): Guardrail Generator -- Cloudflare + AWS WAF rule generation from abuse analysis
 - **Phase 2.1** (complete): Watch Mode -- continuous monitoring with threshold alerts and CSV logging
-- **Phase 3**: Attack Chain Documentation -- published attack pattern research, adversarial eCommerce security guides
+- **Phase 3** (in progress): Attack Chain Documentation -- 2 of 3 attack chain analyses published ([001: Hidden Product Card-Testing](docs/attack-chains/001-hidden-product-card-testing.md), [002: App-Layer Defense Bypass](docs/attack-chains/002-app-layer-defense-bypass.md))
 
 ## Author
 
 **Mason Kim** -- DevSecOps Engineer | Georgia Tech MS Cybersecurity
 
 - GitHub: [@mason5052](https://github.com/mason5052)
-- LinkedIn: [Mason Kim](https://www.linkedin.com/in/mason-kim-b5458816a/)
+- LinkedIn: [Mason Kim](https://www.linkedin.com/in/junkukkim/)
 
 Built from real operational pain defending eCommerce sites against intelligent bot attacks.
 
