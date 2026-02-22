@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.1] - 2026-02-22
+
+### Fixed
+- False positive: Shopify events no longer flagged for missing user-agent (Shopify REST API does not return UA data)
+- Source-aware detection: AnomalousAgentDetector skips missing-UA check for data sources that don't provide it
+
+### Added
+- `SOURCES_WITHOUT_UA` configuration in AnomalousAgentDetector
+- 3 new unit tests for source-aware UA detection (60 total tests)
+
 ## [0.2.0] - 2026-02-22
 
 ### Added
