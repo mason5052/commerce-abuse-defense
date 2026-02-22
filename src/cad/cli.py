@@ -73,7 +73,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     guard_parser.add_argument(
         "--platform", type=str, default="cloudflare",
-        choices=["cloudflare"],
+        choices=["cloudflare", "aws_waf"],
         help="Target WAF platform (default: cloudflare)",
     )
     guard_parser.add_argument(
@@ -84,6 +84,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     guard_parser.add_argument(
         "--zone-id", type=str, default="<ZONE_ID>",
         help="Cloudflare Zone ID (for commands format)",
+    )
+    guard_parser.add_argument(
+        "--web-acl-name", type=str, default="<WEB_ACL_NAME>",
+        help="AWS WAF WebACL name (for commands format)",
     )
     guard_parser.add_argument(
         "--output", type=str, default=None,
@@ -318,9 +322,13 @@ def run_guardrail(args: argparse.Namespace, config: dict) -> int:
     )
 
     # Generate guardrail rules
-    from cad.guardrails.cloudflare import CloudflareGuardrail
+    if args.platform == "aws_waf":
+        from cad.guardrails.aws_waf import AwsWafGuardrail
+        guardrail = AwsWafGuardrail()
+    else:
+        from cad.guardrails.cloudflare import CloudflareGuardrail
+        guardrail = CloudflareGuardrail()
 
-    guardrail = CloudflareGuardrail()
     rules = guardrail.generate(report)
 
     if not rules:
@@ -329,7 +337,14 @@ def run_guardrail(args: argparse.Namespace, config: dict) -> int:
 
     # Export in requested format
     if args.format == "commands":
-        output = guardrail.export_as_commands(rules, zone_id=args.zone_id)
+        if args.platform == "aws_waf":
+            output = guardrail.export_as_commands(
+                rules, web_acl_name=args.web_acl_name,
+            )
+        else:
+            output = guardrail.export_as_commands(
+                rules, zone_id=args.zone_id,
+            )
     else:
         output = guardrail.export(rules)
 
