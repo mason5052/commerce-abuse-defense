@@ -1,0 +1,59 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cad-daily-report
+  namespace: cad
+spec:
+  schedule: "0 6 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 7
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 600
+      backoffLimit: 1
+      template:
+        spec:
+          containers:
+            - name: cad
+              image: localhost:30500/cad:latest
+              imagePullPolicy: Always
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  cad report \
+                    --source shopify,cloudflare \
+                    --config /config/cad-production.yaml \
+                    --period 24h \
+                    --format json \
+                    --output /reports/cad-report-$(date +%Y%m%d).json \
+                    --store
+              envFrom:
+                - secretRef:
+                    name: cad-credentials
+              env:
+                - name: CAD_LOG_LEVEL
+                  value: "INFO"
+              volumeMounts:
+                - name: reports
+                  mountPath: /reports
+                - name: config
+                  mountPath: /config
+              resources:
+                requests:
+                  memory: "128Mi"
+                  cpu: "100m"
+                limits:
+                  memory: "256Mi"
+                  cpu: "500m"
+          restartPolicy: Never
+          nodeSelector:
+            app-worker: w4
+          volumes:
+            - name: reports
+              hostPath:
+                path: /opt/cad/reports
+                type: DirectoryOrCreate
+            - name: config
+              configMap:
+                name: cad-config

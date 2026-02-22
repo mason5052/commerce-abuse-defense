@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import logging
 import os
+import time
 from datetime import datetime, timezone
 from typing import Any
 
@@ -10,6 +12,8 @@ import requests
 
 from cad.collectors.base import BaseCollector
 from cad.scoring.models import CommerceEvent, EventType
+
+logger = logging.getLogger("cad.collectors.cloudflare")
 
 
 class CloudflareCollector(BaseCollector):
@@ -122,25 +126,56 @@ class CloudflareCollector(BaseCollector):
 
         return events
 
-    def _graphql_request(self, query: str, variables: dict) -> dict:
-        """Execute a GraphQL query against Cloudflare Analytics API."""
-        response = requests.post(
-            self.GRAPHQL_URL,
-            json={"query": query, "variables": variables},
-            headers={
-                "Authorization": f"Bearer {self._api_token}",
-                "Content-Type": "application/json",
-            },
-            timeout=30,
-        )
-        response.raise_for_status()
+    def _graphql_request(
+        self, query: str, variables: dict, max_retries: int = 3,
+    ) -> dict:
+        """Execute a GraphQL query with retry and exponential backoff."""
+        for attempt in range(max_retries):
+            try:
+                response = requests.post(
+                    self.GRAPHQL_URL,
+                    json={"query": query, "variables": variables},
+                    headers={
+                        "Authorization": f"Bearer {self._api_token}",
+                        "Content-Type": "application/json",
+                    },
+                    timeout=30,
+                )
 
-        result = response.json()
-        if result.get("errors"):
-            error_msgs = [e.get("message", "Unknown error") for e in result["errors"]]
-            raise RuntimeError(f"Cloudflare API errors: {'; '.join(error_msgs)}")
+                if response.status_code == 429:
+                    wait = 2 ** attempt
+                    logger.warning("Cloudflare rate limited, retrying in %ds", wait)
+                    time.sleep(wait)
+                    continue
 
-        return result.get("data", {})
+                response.raise_for_status()
+
+                result = response.json()
+                if result.get("errors"):
+                    error_msgs = [
+                        e.get("message", "Unknown error") for e in result["errors"]
+                    ]
+                    # Retry on rate-limit errors in GraphQL response
+                    if any("rate" in m.lower() for m in error_msgs):
+                        wait = 2 ** attempt
+                        logger.warning("Cloudflare rate error, retrying in %ds", wait)
+                        time.sleep(wait)
+                        continue
+                    raise RuntimeError(
+                        f"Cloudflare API errors: {'; '.join(error_msgs)}"
+                    )
+
+                return result.get("data", {})
+
+            except requests.exceptions.HTTPError:
+                if attempt < max_retries - 1:
+                    wait = 2 ** attempt
+                    logger.warning("Cloudflare HTTP error, retrying in %ds", wait)
+                    time.sleep(wait)
+                    continue
+                raise
+
+        raise RuntimeError("Cloudflare API: max retries exceeded")
 
     def _fw_event_to_commerce_event(
         self, dims: dict, index: int

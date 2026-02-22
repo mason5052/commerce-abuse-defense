@@ -12,6 +12,7 @@ from cad import __version__
 from cad.collectors.sample import SampleCollector
 from cad.config import load_config
 from cad.detectors import ALL_DETECTORS
+from cad.logging_config import setup_logging
 from cad.reporters.console_reporter import ConsoleReporter
 from cad.reporters.json_reporter import JsonReporter
 from cad.reporters.markdown_reporter import MarkdownReporter
@@ -52,6 +53,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     report_parser.add_argument(
         "--period", type=str, default="24h",
         help="Analysis period (e.g., 1h, 24h, 7d). Default: 24h",
+    )
+    report_parser.add_argument(
+        "--store", action="store_true", default=False,
+        help="Persist report and scores to MongoDB",
     )
 
     # -- score command --
@@ -221,6 +226,17 @@ def run_report(args: argparse.Namespace, config: dict) -> int:
         period_start=start_time,
         period_end=end_time,
     )
+
+    # Persist to MongoDB if requested
+    if args.store:
+        try:
+            from cad.storage.mongo import MongoStorage
+
+            storage = MongoStorage(config.get("mongodb", {}))
+            report_oid = storage.save_report(report)
+            storage.save_score(report.score, report_oid)
+        except Exception as e:
+            print(f"Warning: MongoDB storage failed: {e}", file=sys.stderr)
 
     # Output report
     if args.format == "console":
@@ -523,6 +539,7 @@ def run_watch(args: argparse.Namespace, config: dict) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     """Main entry point."""
+    setup_logging()
     args = parse_args(argv)
 
     if not args.command:

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import logging
 import os
+import time
 from datetime import datetime
 from typing import Any
 
@@ -10,6 +12,8 @@ import requests
 
 from cad.collectors.base import BaseCollector
 from cad.scoring.models import CommerceEvent, EventType
+
+logger = logging.getLogger("cad.collectors.shopify")
 
 
 class ShopifyCollector(BaseCollector):
@@ -126,6 +130,18 @@ class ShopifyCollector(BaseCollector):
                 timeout=30,
             )
             response.raise_for_status()
+
+            # Respect Shopify rate limit (leaky bucket, 2 req/sec)
+            call_limit = response.headers.get(
+                "X-Shopify-Shop-Api-Call-Limit", "0/40"
+            )
+            try:
+                current, maximum = call_limit.split("/")
+                if int(current) > int(maximum) * 0.8:
+                    logger.debug("Shopify rate limit at %s, throttling", call_limit)
+                    time.sleep(1.0)
+            except (ValueError, ZeroDivisionError):
+                pass
 
             data = response.json()
             # Extract the resource key (e.g., 'orders' from 'orders.json')

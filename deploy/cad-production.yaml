@@ -1,0 +1,36 @@
+# CAD production configuration for Zinus eCommerce
+# Tuned for real traffic patterns based on initial 7-day analysis.
+# Secrets (API keys) are loaded from environment variables, NOT this file.
+
+scoring:
+  weights:
+    high_frequency: 0.15
+    hidden_product: 0.20
+    payment_failure: 0.25
+    session_explosion: 0.10
+    anomalous_agent: 0.10
+    geo_concentration: 0.20
+
+detectors:
+  high_frequency:
+    max_events_per_ip: 20
+    window_minutes: 10
+  hidden_product:
+    hidden_price_threshold: 0.01
+    hidden_keywords:
+      - warranty
+      - protection plan
+      - test product
+      - mulberry
+  payment_failure:
+    failure_rate_threshold: 0.25
+    min_attempts: 10
+  session_explosion:
+    baseline_multiplier: 3.0
+    min_sessions: 100
+  geo_concentration:
+    datacenter_asn_threshold: 0.20
+    country_concentration_threshold: 0.7
+
+shopify:
+  api_version: "2024-01"

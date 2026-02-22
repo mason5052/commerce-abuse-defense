@@ -96,6 +96,8 @@ def _apply_env_overrides(config: dict[str, Any]) -> None:
         "CAD_SHOPIFY_PASSWORD": ("shopify", "password"),
         "CAD_CF_API_TOKEN": ("cloudflare", "api_token"),
         "CAD_CF_ZONE_ID": ("cloudflare", "zone_id"),
+        "CAD_MONGO_URI": ("mongodb", "uri"),
+        "CAD_MONGO_DB": ("mongodb", "database"),
     }
 
     for env_var, (section, key) in env_mappings.items():

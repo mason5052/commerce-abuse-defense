@@ -16,3 +16,5 @@ htmlcov/
 .coverage
 *.cover
 .mypy_cache/
+deploy/k8s/secret.yaml
+*.csv
