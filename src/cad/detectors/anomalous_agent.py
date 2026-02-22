@@ -19,6 +19,10 @@ class AnomalousAgentDetector(BaseDetector):
     - HTTP client libraries not used by real browsers
     """
 
+    # Sources that don't provide user-agent data in their API.
+    # Missing UA from these sources is expected, not suspicious.
+    SOURCES_WITHOUT_UA = {"shopify"}
+
     def __init__(self, config: dict[str, Any] | None = None):
         super().__init__(config)
         self._bot_patterns = self.config.get("known_bot_patterns", [
@@ -53,7 +57,9 @@ class AnomalousAgentDetector(BaseDetector):
 
         for event in events:
             if not event.user_agent:
-                missing_ua_events.append(event)
+                # Skip missing UA for sources that don't provide it
+                if event.source not in self.SOURCES_WITHOUT_UA:
+                    missing_ua_events.append(event)
                 continue
 
             matched_pattern = self._match_bot_pattern(event.user_agent)

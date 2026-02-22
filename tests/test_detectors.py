@@ -28,13 +28,14 @@ def _make_event(
     asn_org: str | None = None,
     email: str | None = None,
     order_total: float | None = None,
+    source: str = "test",
 ) -> CommerceEvent:
     """Helper to create test CommerceEvent objects."""
     return CommerceEvent(
         event_id=event_id,
         event_type=event_type,
         timestamp=datetime.fromisoformat(timestamp.replace("Z", "+00:00")),
-        source="test",
+        source=source,
         ip_address=ip_address,
         user_agent=user_agent,
         session_id=session_id,
@@ -247,6 +248,41 @@ class TestAnomalousAgentDetector:
         detector = AnomalousAgentDetector()
         results = detector.detect(events)
         assert len(results) == 0
+
+    def test_shopify_missing_ua_not_flagged(self):
+        """Shopify REST API doesn't return user-agent -- missing UA is expected."""
+        events = [
+            _make_event(event_id=f"aa_shop_{i}", user_agent=None, source="shopify")
+            for i in range(20)
+        ]
+        detector = AnomalousAgentDetector()
+        results = detector.detect(events)
+        missing_ua_results = [r for r in results if "missing" in r.description.lower()]
+        assert len(missing_ua_results) == 0
+
+    def test_non_shopify_missing_ua_still_flagged(self):
+        """Missing UA from sources that should provide it is still suspicious."""
+        events = [
+            _make_event(event_id=f"aa_cf_{i}", user_agent=None, source="cloudflare")
+            for i in range(5)
+        ]
+        detector = AnomalousAgentDetector()
+        results = detector.detect(events)
+        missing_ua_results = [r for r in results if "missing" in r.description.lower()]
+        assert len(missing_ua_results) >= 1
+
+    def test_shopify_bot_ua_still_flagged(self):
+        """Shopify events WITH a bot user-agent should still be flagged."""
+        events = [
+            _make_event(
+                event_id="aa_shop_bot_1",
+                user_agent="python-requests/2.31.0",
+                source="shopify",
+            ),
+        ]
+        detector = AnomalousAgentDetector()
+        results = detector.detect(events)
+        assert len(results) >= 1
 
 
 class TestGeoConcentrationDetector:
