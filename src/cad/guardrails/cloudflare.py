@@ -40,7 +40,9 @@ class CloudflareGuardrail(BaseGuardrail):
 
         # Rule 1: Block confirmed attacking IPs
         if attacking_ips:
-            ip_list = " ".join(f'"{ip}"' for ip in attacking_ips[:20])
+            ip_list = " ".join(
+                f'"{ip}"' for ip in sorted(attacking_ips)[:20]
+            )
             rules.append(GuardrailRule(
                 name="CAD: Block Attacking IPs",
                 description=f"Block {len(attacking_ips)} IPs identified in abuse analysis",
