@@ -504,13 +504,17 @@ class TestAwsWafGuardrail:
         data = json.loads(output)
 
         assert data["platform"] == "aws_waf"
-        assert data["rules_count"] == 1
-        assert len(data["web_acl_rules"]) == 1
+        # CAD-003-IP triggers both IP block + checkout rate limit
+        assert data["rules_count"] >= 1
+        assert len(data["web_acl_rules"]) >= 1
         assert len(data["ip_sets"]) == 1
-        waf_rule = data["web_acl_rules"][0]
-        assert waf_rule["Name"] == "CAD-IPBlock-AttackingIPs"
-        assert "Block" in waf_rule["Action"]
-        assert waf_rule["VisibilityConfig"]["CloudWatchMetricsEnabled"]
+        # Find the IP block rule specifically
+        ip_rule = next(
+            r for r in data["web_acl_rules"]
+            if r["Name"] == "CAD-IPBlock-AttackingIPs"
+        )
+        assert "Block" in ip_rule["Action"]
+        assert ip_rule["VisibilityConfig"]["CloudWatchMetricsEnabled"]
 
     def test_export_as_commands(self):
         g = AwsWafGuardrail()
@@ -551,7 +555,10 @@ class TestAwsWafGuardrail:
         report = _make_report(detections=detections)
         rules = g.generate(report)
 
-        ip_rules = [r for r in rules if r.action == "block"]
+        ip_rules = [
+            r for r in rules
+            if r.name == "CAD-IPBlock-AttackingIPs"
+        ]
         assert len(ip_rules) == 1
         addrs = ip_rules[0].metadata["ip_set_addresses"]
         assert len(addrs) <= 20
