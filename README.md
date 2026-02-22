@@ -8,6 +8,25 @@
 
 ---
 
+## Table of Contents
+
+- [Problem](#problem)
+- [Architecture](#architecture)
+- [Quick Start](#quick-start)
+- [Repository Structure](#repository-structure)
+- [Detection Rules](#detection-rules)
+- [Abuse Score Scale](#abuse-score-scale)
+- [Usage](#usage)
+- [Configuration](#configuration)
+- [Guardrail Generator](#guardrail-generator-phase-2)
+- [Continuous Monitoring](#continuous-monitoring)
+- [Roadmap](#roadmap)
+- [Contributing](#contributing)
+- [Author](#author)
+- [License](#license)
+
+---
+
 ## Problem
 
 eCommerce platforms face constant automated attacks that existing defenses handle poorly:
@@ -202,14 +221,19 @@ CAD Watch | source=shopify period=1h interval=30m threshold=25.0
 - **Phase 2.1** (complete): Watch Mode -- continuous monitoring with threshold alerts and CSV logging
 - **Phase 3** (in progress): Attack Chain Documentation -- 2 of 3 attack chain analyses published ([001: Hidden Product Card-Testing](docs/attack-chains/001-hidden-product-card-testing.md), [002: App-Layer Defense Bypass](docs/attack-chains/002-app-layer-defense-bypass.md))
 
+## Contributing
+
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
 ## Author
 
-**Mason Kim** -- DevSecOps Engineer | Georgia Tech MS Cybersecurity
+**Mason Kim** -- Security Engineer
 
 - GitHub: [@mason5052](https://github.com/mason5052)
 - LinkedIn: [Mason Kim](https://www.linkedin.com/in/junkukkim/)
-
-Built from real operational pain defending eCommerce sites against intelligent bot attacks.
+- Portfolio: [mason5052.github.io/mason-kim](https://mason5052.github.io/mason-kim/)
+- MS Cybersecurity, Georgia Institute of Technology
+- CEH | Terraform Associate (004) | CASE Java
 
 ## License
 
