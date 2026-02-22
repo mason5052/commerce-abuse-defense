@@ -82,9 +82,12 @@ commerce-abuse-defense/
 |   |   |-- json_reporter.py      # Machine-readable output
 |   |   |-- markdown_reporter.py  # Human-readable reports
 |   |   |-- console_reporter.py   # Colored terminal output
+|   |-- guardrails/
+|   |   |-- base.py               # Abstract guardrail interface
+|   |   |-- cloudflare.py         # Cloudflare WAF rule generator
 |   |-- playbooks/                # Response playbooks
 |-- tests/                        # Unit tests + fixtures
-|-- docs/                         # Setup guides + threat model
+|-- docs/                         # Setup guides + threat model + blog
 |-- examples/                     # Quickstart script + demo report
 ```
 
@@ -117,6 +120,10 @@ cad report --source sample --format markdown --output report.md
 # Quick score check
 cad score --source sample --period 1h
 
+# Generate Cloudflare WAF rules from abuse analysis
+cad guardrail --source sample --format json --output rules.json
+cad guardrail --source sample --format commands --zone-id YOUR_ZONE_ID
+
 # With real Shopify + Cloudflare data
 export CAD_SHOPIFY_SHOP="your-store"
 export CAD_SHOPIFY_API_KEY="your-key"
@@ -139,10 +146,25 @@ cad report --source shopify,cloudflare --period 24h --format json
 
 All configuration can also be set via YAML file (`--config cad.yml`).
 
+## Guardrail Generator (Phase 2)
+
+CAD can automatically generate deployable WAF rules from abuse analysis:
+
+| Threat Severity | Cloudflare Action |
+|----------------|-------------------|
+| CRITICAL (confirmed attacker IPs) | Block |
+| HIGH (bot user-agents) | Managed Challenge (CAPTCHA) |
+| MEDIUM (datacenter ASN + checkout) | JS Challenge |
+| LOW | Log only |
+
+Generated rules include IP blocklists, bot UA challenges, datacenter ASN
+filtering, checkout rate limiting, hidden product referrer validation,
+and session flood JS challenges.
+
 ## Roadmap
 
-- **Phase 1** (current): Abuse Score Reporter -- batch analysis, rule-based detection, CLI output
-- **Phase 2**: Automated Guardrails -- real-time blocking, Cloudflare WAF rule generation, Shopify Flow integration
+- **Phase 1** (complete): Abuse Score Reporter -- batch analysis, rule-based detection, CLI output
+- **Phase 2** (complete): Guardrail Generator -- Cloudflare WAF rule generation from abuse analysis
 - **Phase 3**: Attack Chain Documentation -- published attack pattern research, adversarial eCommerce security guides
 
 ## Author
