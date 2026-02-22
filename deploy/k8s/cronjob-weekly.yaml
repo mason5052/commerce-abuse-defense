@@ -23,7 +23,7 @@ spec:
                 - |
                   cad --config /config/cad-production.yaml \
                     report \
-                    --source shopify \
+                    --source shopify,cloudflare \
                     --period 7d \
                     --format markdown \
                     --output /reports/cad-weekly-$(date +%Y%m%d).md \

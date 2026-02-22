@@ -23,7 +23,7 @@ spec:
                 - |
                   cad --config /config/cad-production.yaml \
                     report \
-                    --source shopify \
+                    --source shopify,cloudflare \
                     --period 24h \
                     --format json \
                     --output /reports/cad-report-$(date +%Y%m%d).json \
