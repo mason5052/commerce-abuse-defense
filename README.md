@@ -4,7 +4,9 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![CI](https://github.com/mason5052/commerce-abuse-defense/actions/workflows/ci.yml/badge.svg)](https://github.com/mason5052/commerce-abuse-defense/actions)
 
-**Detect and score bot abuse, card-testing, and fraud on eCommerce sites.**
+**Experimental rule-based toolkit to detect and score bot abuse, card-testing, and fraud on eCommerce sites.**
+
+This repository packages a CLI-oriented prototype: collect Shopify, Cloudflare, or sample data, run rule-based detectors, generate abuse reports, and export Cloudflare or AWS WAF guardrail suggestions. The current implementation is batch, report, and watch oriented rather than a hosted real-time service.
 
 ---
 
